@@ -1,15 +1,14 @@
-
 const axios = require('axios');
 
-module.exports = async function (req, res) {
+module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { question } = req.body;
 
-  if (!question) {
-    return res.status(400).json({ error: 'Pergunta não fornecida.' });
+  if (!question || typeof question !== 'string') {
+    return res.status(400).json({ error: 'Pergunta não fornecida ou inválida.' });
   }
 
   const basePrompt = `
@@ -33,20 +32,26 @@ Sempre que possível, cite o capítulo ou seção do livro onde o tema é tratad
         messages: [
           { role: 'system', content: basePrompt },
           { role: 'user', content: question }
-        ]
+        ],
+        temperature: 0.7 // ➕ ajuste para controlar criatividade
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
         }
       }
     );
 
-    const answer = response.data.choices[0].message.content;
+    const answer = response.data?.choices?.[0]?.message?.content;
+
+    if (!answer) {
+      return res.status(500).json({ error: 'Nenhuma resposta gerada pela IA.' });
+    }
+
     return res.status(200).json({ answer });
   } catch (error) {
-    console.error('Erro na requisição:', error?.response?.data || error.message);
-    return res.status(500).json({ error: 'Erro ao gerar resposta da IA' });
+    console.error('Erro na requisição à OpenAI:', error?.response?.data || error.message);
+    return res.status(500).json({ error: 'Erro ao gerar resposta da IA.' });
   }
 };
