@@ -1,50 +1,58 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-  // DEBUG: checa se a variável de ambiente está chegando
-  console.log('OPENAI_API_KEY presente?', !!process.env.OPENAI_API_KEY);
+  // 1) CORS – deve vir primeiro, antes de qualquer return 405
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization'
+  );
+  // preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
+  // 2) daí sim só POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // 3) validação do body
   const { question } = req.body;
   if (!question || typeof question !== 'string') {
-    return res.status(400).json({ error: 'Pergunta não fornecida ou inválida.' });
+    return res
+      .status(400)
+      .json({ error: 'Pergunta não fornecida ou inválida.' });
   }
 
+  // 4) seu prompt e chamada à OpenAI
   const basePrompt = `
-Você é TheoBot, um agente teológico especializado em responder perguntas com base no livro “A Ressurreição do Filho de Deus”, de N. T. Wright.
+Você é TheoBot, um agente teológico especializado em responder perguntas...
   `;
-
   try {
-    const response = await axios.post(
+    const aiRes = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-3.5-turbo',         // 👈 teste temporário
+        model: 'gpt-4.1', // ou gpt-4, se vc realmente tiver acesso
         messages: [
           { role: 'system', content: basePrompt },
-          { role: 'user',   content: question }
-        ]
+          { role: 'user', content: question },
+        ],
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-        }
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
       }
     );
-
-    const answer = response.data?.choices?.[0]?.message?.content;
-    if (!answer) {
-      throw new Error('Nenhuma resposta gerada pela IA.');
-    }
+    const answer = aiRes.data.choices[0].message.content;
     return res.status(200).json({ answer });
-
   } catch (err) {
-    console.error('Erro na requisição à OpenAI:', err.response?.data || err.message);
+    console.error('Erro ao chamar a OpenAI:', err.response?.data || err);
     return res
       .status(500)
-      .json({ error: 'Erro ao gerar resposta da IA.', details: err.response?.data || err.message });
+      .json({ error: 'Erro ao gerar resposta da IA.' });
   }
 };
