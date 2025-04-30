@@ -1,6 +1,17 @@
 const axios = require('axios');
 
 module.exports = async function (req, res) {
+  // Configura CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Responde ao preflight (OPTIONS)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Permite apenas POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -9,13 +20,6 @@ module.exports = async function (req, res) {
 
   if (!question) {
     return res.status(400).json({ error: 'Pergunta não fornecida.' });
-  }
-
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    console.error('Variável de ambiente OPENAI_API_KEY não encontrada.');
-    return res.status(500).json({ error: 'Chave da OpenAI não configurada no ambiente.' });
   }
 
   const basePrompt = `
@@ -35,7 +39,7 @@ Sempre que possível, cite o capítulo ou seção do livro onde o tema é tratad
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4.1',
+        model: 'gpt-4',
         messages: [
           { role: 'system', content: basePrompt },
           { role: 'user', content: question }
@@ -43,22 +47,16 @@ Sempre que possível, cite o capítulo ou seção do livro onde o tema é tratad
       },
       {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
           'Content-Type': 'application/json'
         }
       }
     );
 
-    const answer = response.data.choices?.[0]?.message?.content;
-    return res.status(200).json({ answer: answer || 'Sem resposta gerada.' });
-
+    const answer = response.data.choices[0].message.content;
+    return res.status(200).json({ answer });
   } catch (error) {
-    const errData = error?.response?.data || error.message || 'Erro desconhecido';
-    console.error('Erro ao chamar a OpenAI:', errData);
-
-    return res.status(500).json({
-      error: 'Erro ao gerar resposta da IA.',
-      details: errData // opcional: remova em produção
-    });
+    console.error('Erro na requisição:', error?.response?.data || error.message);
+    return res.status(500).json({ error: 'Erro ao gerar resposta da IA.', details: error?.response?.data });
   }
 };
