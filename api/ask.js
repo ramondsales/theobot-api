@@ -1,14 +1,21 @@
 const axios = require('axios');
 
-module.exports = async (req, res) => {
+module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { question } = req.body;
 
-  if (!question || typeof question !== 'string') {
-    return res.status(400).json({ error: 'Pergunta não fornecida ou inválida.' });
+  if (!question) {
+    return res.status(400).json({ error: 'Pergunta não fornecida.' });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    console.error('Variável de ambiente OPENAI_API_KEY não encontrada.');
+    return res.status(500).json({ error: 'Chave da OpenAI não configurada no ambiente.' });
   }
 
   const basePrompt = `
@@ -32,26 +39,26 @@ Sempre que possível, cite o capítulo ou seção do livro onde o tema é tratad
         messages: [
           { role: 'system', content: basePrompt },
           { role: 'user', content: question }
-        ],
-        temperature: 0.7 // ➕ ajuste para controlar criatividade
+        ]
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
         }
       }
     );
 
-    const answer = response.data?.choices?.[0]?.message?.content;
+    const answer = response.data.choices?.[0]?.message?.content;
+    return res.status(200).json({ answer: answer || 'Sem resposta gerada.' });
 
-    if (!answer) {
-      return res.status(500).json({ error: 'Nenhuma resposta gerada pela IA.' });
-    }
-
-    return res.status(200).json({ answer });
   } catch (error) {
-    console.error('Erro na requisição à OpenAI:', error?.response?.data || error.message);
-    return res.status(500).json({ error: 'Erro ao gerar resposta da IA.' });
+    const errData = error?.response?.data || error.message || 'Erro desconhecido';
+    console.error('Erro ao chamar a OpenAI:', errData);
+
+    return res.status(500).json({
+      error: 'Erro ao gerar resposta da IA.',
+      details: errData // opcional: remova em produção
+    });
   }
 };
