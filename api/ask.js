@@ -35,7 +35,7 @@ Sempre que possível, cite o capítulo ou seção do livro onde o tema é tratad
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4',
+        model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: basePrompt },
           { role: 'user', content: question }
