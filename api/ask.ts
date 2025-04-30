@@ -1,7 +1,9 @@
 
 import type { VercelRequest, VercelResponse } from 'vercel';
 import axios from 'axios';
+const axios = require('axios');
 
+module.exports = async function handler(req, res) {
 const basePrompt = `
 Você é TheoBot, um agente teológico especializado em responder perguntas com base no livro “A Ressurreição do Filho de Deus”, de N. T. Wright.
 
@@ -51,3 +53,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "Erro ao gerar resposta da IA" });
   }
 }
+}
+  
